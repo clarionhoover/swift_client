@@ -6,6 +6,7 @@ require "httparty"
 require "mime-types"
 require "openssl"
 require "stringio"
+require "uri"
 
 class SwiftClient
   class AuthenticationError < StandardError; end
@@ -190,7 +191,15 @@ class SwiftClient
 
     stream_pos = opts[:body_stream].pos if opts[:body_stream]
 
-    response = HTTParty.send(method, "#{storage_url}#{path}", opts.merge(:headers => headers), &block)
+    if(ENV['http_proxy'])
+      uri = URI.parse(ENV['http_proxy'])
+      proxy_host = uri.host
+      proxy_port = uri.port
+      response = HTTParty.send(method, "#{storage_url}#{path}", opts.merge(:headers => headers, :http_proxyaddr => proxy_host, :http_proxyport => proxy_port), &block)
+
+    else
+      response = HTTParty.send(method, "#{storage_url}#{path}", opts.merge(:headers => headers), &block)
+    end
 
     if response.code == 401
       authenticate
@@ -243,7 +252,14 @@ class SwiftClient
       raise(AuthenticationError, "#{key} missing") unless options[key]
     end
 
-    response = HTTParty.get(options[:auth_url], :headers => { "X-Auth-User" => options[:username], "X-Auth-Key" => options[:api_key] })
+    if(ENV['http_proxy'])
+      uri = URI.parse(ENV['http_proxy'])
+      proxy_host = uri.host
+      proxy_port = uri.port
+      response = HTTParty.get(options[:auth_url], :headers => { "X-Auth-User" => options[:username], "X-Auth-Key" => options[:api_key] }, :http_proxyaddr => proxy_host, :http_proxyport => proxy_port)
+    else
+      response = HTTParty.get(options[:auth_url], :headers => { "X-Auth-User" => options[:username], "X-Auth-Key" => options[:api_key] })
+    end
 
     raise(AuthenticationError, "#{response.code}: #{response.message}") unless response.success?
 
@@ -271,7 +287,14 @@ class SwiftClient
       raise AuthenticationError, "Unknown authentication method"
     end
 
-    response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" })
+    if(ENV['http_proxy'])
+      uri = URI.parse(ENV['http_proxy'])
+      proxy_host = uri.host
+      proxy_port = uri.port
+      response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" }, :http_proxyaddr => proxy_host, :http_proxyport => proxy_port)
+    else
+      response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" })
+    end
 
     raise(AuthenticationError, "#{response.code}: #{response.message}") unless response.success?
 
@@ -316,7 +339,14 @@ class SwiftClient
       auth["auth"]["scope"]["domain"]["id"] = options[:domain_id] if options[:domain_id]
     end
 
-    response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/auth/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" })
+    if(ENV['http_proxy'])
+      uri = URI.parse(ENV['http_proxy'])
+      proxy_host = uri.host
+      proxy_port = uri.port
+      response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/auth/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" }, :http_proxyaddr => proxy_host, :http_proxyport => proxy_port)
+    else
+      response = HTTParty.post("#{options[:auth_url].gsub(/\/+$/, "")}/auth/tokens", :body => JSON.dump(auth), :headers => { "Content-Type" => "application/json" })
+    end
 
     raise(AuthenticationError, "#{response.code}: #{response.message}") unless response.success?
 
